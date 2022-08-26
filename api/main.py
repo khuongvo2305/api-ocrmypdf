@@ -22,7 +22,7 @@ from fastapi import (
     Query,
 )
 from fastapi.openapi.models import APIKey
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import APIKeyHeader
 from pydantic import ValidationError
 from starlette.status import HTTP_403_FORBIDDEN
@@ -31,6 +31,7 @@ from api.models import Document, Lang
 from api.settings import config
 from api.tools import save_upload_file
 
+import json
 logger = logging.getLogger("gunicorn.error")
 
 app = FastAPI(
@@ -154,12 +155,27 @@ def get_doc_txt(pid: UUID, api_key: APIKey = Depends(check_api_key)):
     raise HTTPException(status_code=404)
 
 
+@app.get("/ocr/{pid}/related_documents")
+def get_related_documents(pid: UUID, api_key: APIKey = Depends(check_api_key)):
+    if pid in documents:
+        output_related_document = documents[pid].output_related_document
+
+        if output_related_document.resolve().exists():
+            with open(output_related_document.resolve(),"r") as f:
+                return JSONResponse(
+                    json.loads(f.read()),
+                    headers={"Content-Type": "application/json"},
+                    # filename=f"{pid}.json",
+                )
+
+    raise HTTPException(status_code=404)
+
 @app.post(
     "/ocr", response_model=Document, status_code=202,
 )
 async def ocr(
     background_tasks: BackgroundTasks,
-    lang: Optional[Set[str]] = Query([Lang.eng]),
+    lang: Optional[Set[str]] = Query([Lang.vie]),
     file: UploadFile = File(...),
     api_key: APIKey = Depends(check_api_key),
 ):
@@ -172,6 +188,7 @@ async def ocr(
     save_upload_file(file, input_file)
     output_file = workdir / Path(f"o_{filename}.pdf")
     output_file_json = workdir / Path(f"o_{filename}.json")
+    output_related_document = workdir / Path(f"o_{filename}_documents.json")
     output_file_txt = workdir / Path(f"o_{filename}.txt")
     documents[pid] = Document.parse_obj(
         {
@@ -180,6 +197,7 @@ async def ocr(
             "input": input_file,
             "output": output_file,
             "output_json": output_file_json,
+            "output_related_document": output_related_document,
             "output_txt": output_file_txt,
             "status": "received",
             "created": now,

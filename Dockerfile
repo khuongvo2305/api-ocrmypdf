@@ -10,29 +10,15 @@ RUN apt-get update && \
         pngquant \
         python3-pip \
         tesseract-ocr \
-        tesseract-ocr-eng \
-        tesseract-ocr-fra \
-        tesseract-ocr-dan \
-        tesseract-ocr-nld \
-        tesseract-ocr-fin \
-        tesseract-ocr-deu \
-        tesseract-ocr-hun \
-        tesseract-ocr-ita \
-        tesseract-ocr-nor \
-        tesseract-ocr-por \
-        tesseract-ocr-ron \
-        tesseract-ocr-rus \
-        tesseract-ocr-spa \
-        tesseract-ocr-swe \
-        tesseract-ocr-tur \
+        tesseract-ocr-vie \
         zlib1g && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-RUN pip3 install ocrmypdf==12.0.0
-
+# RUN pip3 install ocrmypdf==12.0.0
+RUN pip3 install ocrmypdf
 COPY requirements.txt /app/requirements.txt
 RUN pip3 install -r requirements.txt
 

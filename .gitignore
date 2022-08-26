@@ -3,3 +3,4 @@ api/workdir
 workdir
 *.pdf
 *.key
+test.py

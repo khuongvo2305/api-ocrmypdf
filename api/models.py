@@ -1,3 +1,4 @@
+from asyncore import read
 import subprocess
 from datetime import datetime
 from enum import Enum
@@ -10,23 +11,26 @@ from pydantic import BaseModel
 from api.settings import config
 from api.tools import special_win_wslpath
 
-
+import json
+import requests
+import re
 class Lang(str, Enum):
     eng = "eng"
-    fra = "fra"
-    dan = "dan"
-    nld = "nld"
-    fin = "fin"
-    deu = "deu"
-    hun = "hun"
-    ita = "ita"
-    nor = "nor"
-    por = "por"
-    ron = "ron"
-    rus = "rus"
-    spa = "spa"
-    swe = "swe"
-    tur = "tur"
+    # fra = "fra"
+    # dan = "dan"
+    # nld = "nld"
+    # fin = "fin"
+    # deu = "deu"
+    # hun = "hun"
+    # ita = "ita"
+    # nor = "nor"
+    # por = "por"
+    # ron = "ron"
+    # rus = "rus"
+    # spa = "spa"
+    # swe = "swe"
+    # tur = "tur"
+    vie = "vie"
 
 
 class Document(BaseModel):
@@ -37,6 +41,7 @@ class Document(BaseModel):
     output: Path
     output_json: Path
     output_txt: Path
+    output_related_document: Path
     result: Optional[str] = None
     code: Optional[int] = None
     created: datetime
@@ -88,11 +93,43 @@ class Document(BaseModel):
             self.finished = datetime.now()
         finally:
             self.save_state()
+            self.get_related_api()
 
     def save_state(self):
         with open(self.output_json, "w") as ff:
             ff.write(self.json())
 
+    def get_related_api(self):
+        result = []
+        with open(str(self.output_txt.absolute()), "r",encoding="utf-8", errors='backslashreplace') as ff:
+            sidecarss = ff.readlines()
+            for sidecars in sidecarss:
+                if sidecars != "":
+                    sidecars = re.sub(""," ",sidecars)
+                    sidecars = re.sub(r"/\s\s+/g"," ",sidecars)
+                    url = config.related_document_api  
+                    payload = json.dumps({
+                    "query": sidecars
+                    })
+                    response = requests.request("POST", url, json={
+                    "query": sidecars
+                    })
+                    with open(self.output_related_document, "w") as fp:
+                        # try:
+                        res = json.loads(response.text)
+                        for item in res:
+                            if len(item["output"])>0:
+                                print(item)
+                                result.append(item)
+                        
+                        # except:
+                            
+                        #     print("Error %s"%response.text)
+                            # result.extend([{"output":[],"Error":response.text, "sent_failed":sidecars}])
+       
+        with open(self.output_related_document, "w") as f:
+            f.write(json.dumps(result))
+            # json.dump(result,self.output_related_document)
     def delete_all_files(self):
         if self.input.exists():
             self.input.unlink()
@@ -100,5 +137,7 @@ class Document(BaseModel):
             self.output.unlink()
         if self.output_json.exists():
             self.output_json.unlink()
+        if self.output_related_document.exists():
+            self.output_related_document.unlink()
         if self.output_txt.exists():
             self.output_txt.unlink()

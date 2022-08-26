@@ -4,3 +4,4 @@ workdir
 *.pdf
 *.key
 test.py
+env/
